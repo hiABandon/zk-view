@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta
+      content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0"
+      name="viewport">
+  <meta content="ie=edge" http-equiv="X-UA-Compatible">
+  <title>zk-view-hhs</title>
+  <script src="https://cdn.jsdelivr.net/npm/vue"></script>
+  <!-- 引入样式 -->
+  <link href="https://unpkg.com/element-ui/lib/theme-chalk/index.css" rel="stylesheet">
+  <!-- 引入组件库 -->
+  <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+<body>
+<div id="app">
+  <el-row :gutter="10">
+    <el-col :span="16" offset="4">
+      <el-container>
+        <el-header style="background-color: rgb(131, 154, 255);">
+          <el-row>
+            <el-col :span="4">LOGO</el-col>
+            <el-col :span="20">
+              <el-row :gutter="10">
+                <el-col :span="12">JVM总内存: {{pro_info.totalMem}}</el-col>
+                <el-col :span="12">最大内存: {{pro_info.maxMem}}</el-col>
+              </el-row>
+              <el-row :gutter="10">
+                <el-col :span="12">剩余内存: {{pro_info.freeMem}}</el-col>
+                <el-col :span="12">已运行: {{pro_info.runTime}}</el-col>
+              </el-row>
+            </el-col>
+          </el-row>
+        </el-header>
+        <el-container>
+          <el-aside width="200px" style="background-color: #99a9bf;">
+            <div>side</div>
+            <div>Lorem ipsum dolor sit amet consectetur adipisicing elit. Veniam repellendus optio doloremque, voluptatum ullam eveniet impedit saepe reprehenderit animi ea. In quam nemo dolore tempora soluta, voluptatum nihil! Deserunt, inventore!</div>
+          </el-aside>
+          <el-main style="background-color: #d3dce6;">
+            <div>main</div>
+            <div>Lorem ipsum dolor sit amet consectetur adipisicing elit. Ut non nobis architecto culpa tempore, autem officiis natus quibusdam. Vitae aspernatur voluptatibus quam fugit eius magnam assumenda cum vero eum qui.</div>
+          </el-main>
+        </el-container>
+      </el-container>
+    </el-col>
+  </el-row>
+</div>
+</body>
+
+<script>
+  var app = new Vue({
+    el: '#app',
+    data: {
+      pro_info: {
+        "totalMem": "",
+        "maxMem": "",
+        "freeMem": "",
+        "runTime": ""
+      },
+      options: [
+        {
+          value: 'PERSISTENT',
+          label: 'PERSISTENT'
+        }, {
+          value: 'EPHEMERAL',
+          label: 'EPHEMERAL'
+        }
+      ],
+      now_node_pat: "",
+      dialogVisible: false,
+      radio: '1',
+      message: "hello",
+      node_type: "",
+      og: [],
+      defaultProps: {
+        children: 'child',
+        label: 'showName'
+      },
+      node_info: {},
+      create_node_param: {
+        path: "",
+        type: "",
+        data: ""
+      },
+      update_node_param: {
+        "path": "",
+        "data": ""
+      },
+      zk_state_res: "",
+      header: ["column1", "column2", "column3"],
+      data_list: [
+        [1, 2, 3],
+        [4, 5, 6]
+      ],
+    },
+    methods: {
+      handleNodeClick: function (data) {
+        this.info(data.path);
+      },
+      info: function (path) {
+        axios.get("/node/get/info", {params: {path: path}}).then(response => {
+          this.node_info = response.data.data
+          this.message = response.data.data.stat;
+          this.node_type = response.data.data.type
+          this.now_node_pat = path;
+        }).catch(function (error) {
+          console.log(error);
+        });
+      },
+      tree: function () {
+        axios.get('/node/tree').then(response => {
+          this.og = [response.data.data];
+        }).catch(function (error) {
+          console.log(error);
+        });
+
+      },
+      handleClose: function (done) {
+        this.$confirm('确认关闭？')
+        .then(_ => {
+          done();
+        })
+        .catch(_ => {
+        });
+      },
+      del_node: function () {
+        if (!(this.now_node_pat == '')) {
+          axios.get("node/del", {
+            params: {
+              path: this.now_node_pat
+            }
+          }).then(response => {
+            this.tree();
+          }).catch(function (error) {
+            console.log(error);
+          });
+        }
+      },
+      up_node: function () {
+        if (!(this.now_node_pat == '')) {
+          this.update_node_param.data = this.node_info.data
+          this.update_node_param.path = this.now_node_pat;
+
+          axios.post("/node/update", this.update_node_param).then(response => {
+            this.info(this.now_node_pat);
+          }).catch(function (error) {
+            console.log(error);
+          });
+
+        }
+      },
+      create_node: function () {
+        this.dialogVisible = false;
+        axios.post("/node/create", this.create_node_param).then(response => {
+          this.tree();
+        }).catch(function (err) {
+          console.log(err);
+        });
+      },
+      jvm: function () {
+        axios.get("conf/jvm").then(response => {
+          this.pro_info = response.data.data;
+        })
+      },
+      zookeeper_state: function () {
+        axios.post("/state/zk", {
+          "port": 2181,
+          "ip": "localhost"
+        }).then(response => {
+          this.zk_state_res = JSON.stringify(response.data.data) ;
+        });
+      },
+      zk_mntr: function () {
+        axios.post("/state/mntr").then(res => {
+          var data = res.data.data;
+          this.header = data.head;
+          this.data_list = data.body;
+        });
+
+      }
+    },
+    created: function () {
+      this.tree();
+      this.jvm();
+      this.zookeeper_state();
+      this.zk_mntr();
+      this.node_info = {
+        state: {
+          czxid: 2,
+          mzxid: 0,
+          ctime: 0,
+          mtime: 0,
+          version: 0,
+          cversion: 0,
+          aversion: 0,
+          ephemeralOwner: 0,
+          dataLength: 0,
+          numChildren: 0,
+          pzxid: 0
+        },
+        data: "数据",
+        type: "临时节点"
+      }
+    }
+  });
+</script>
+
+<style>
+  .el-row {
+    margin-bottom: 20px;
+  }
+  .el-col {
+    border-radius: 4px;
+  }
+  .bg-purple-dark {
+    background: #99a9bf;
+  }
+  .bg-purple {
+    background: #d3dce6;
+  }
+  .bg-purple-light {
+    background: #e5e9f2;
+  }
+  .grid-content {
+    border-radius: 4px;
+    min-height: 36px;
+  }
+  .row-bg {
+    padding: 10px 0;
+    background-color: #f9fafc;
+  }
+</style>
+</html>

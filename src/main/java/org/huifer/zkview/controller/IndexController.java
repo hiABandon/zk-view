@@ -12,4 +12,9 @@ public class IndexController {
   public String index(){
     return "index";
   }
+
+  @GetMapping("/index-hhs")
+  public String index_hhs(){
+    return "index-hhs";
+  }
 }
